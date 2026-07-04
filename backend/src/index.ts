@@ -1,15 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
-app.use(cors({
-  origin: "https://pit-weld.vercel.app",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
-app.options("*", cors());
+import cors from 'cors';
 import http from 'http';
 import { Server } from 'socket.io';
+
 import { authRouter } from './modules/auth/controller';
 import { qrRouter } from './modules/auth/qr.controller';
 import { userRouter } from './modules/auth/user.controller';
@@ -41,14 +35,35 @@ import { processScheduledMessages } from './core/queue/scheduledWorker';
 import { sweepExpiredStatuses } from './core/queue/statusSweeper';
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: "https://pit-weld.vercel.app",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+app.options(/.*/, cors());
+
 app.use(express.json());
-app.use(express.static('web-client')); // sirve el cliente web en la raíz del dominio
+app.use(express.static('web-client'));
 
 const server = http.createServer(app);
-export const io = new Server(server, { cors: { origin: '*' } });
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+export const io = new Server(server, {
+  cors: {
+    origin: "https://pit-weld.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString()
+  });
+});
 
 app.use('/api/auth', authRouter);
 app.use('/api/auth/qr', qrRouter);
@@ -77,27 +92,36 @@ app.use('/api/game', gameRouter);
 
 registerSocketHandlers(io);
 
-// Worker del sistema Tornado: reintenta mensajes encolados cada 3 segundos.
+// Worker del sistema Tornado
 setInterval(() => {
-  processRetryQueue().catch((e) => console.error('Error procesando retry queue:', e));
+  processRetryQueue().catch((e) =>
+    console.error('Error procesando retry queue:', e)
+  );
 }, 3000);
 
-// Worker del sistema de Mensajes Efímeros: barre vencidos cada 10 segundos.
+// Worker de mensajes efímeros
 setInterval(() => {
-  sweepExpiredMessages().catch((e) => console.error('Error en sweep de efímeros:', e));
+  sweepExpiredMessages().catch((e) =>
+    console.error('Error en sweep de efímeros:', e)
+  );
 }, 10000);
 
-// Worker del sistema de Mensajes Programados: envía los que ya llegaron a su hora.
+// Worker de mensajes programados
 setInterval(() => {
-  processScheduledMessages().catch((e) => console.error('Error en scheduled worker:', e));
+  processScheduledMessages().catch((e) =>
+    console.error('Error en scheduled worker:', e)
+  );
 }, 15000);
 
-// Worker del sistema de Estados/Historias: borra los vencidos (24hs) cada 60 segundos.
+// Worker de estados
 setInterval(() => {
-  sweepExpiredStatuses().catch((e) => console.error('Error en sweep de estados:', e));
+  sweepExpiredStatuses().catch((e) =>
+    console.error('Error en sweep de estados:', e)
+  );
 }, 60000);
 
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
   console.log(`Pit backend corriendo en el puerto ${PORT}`);
 });
