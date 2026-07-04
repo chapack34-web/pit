@@ -1,6 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
+app.use(cors({
+  origin: "https://pit-weld.vercel.app",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+app.options("*", cors());
 import http from 'http';
 import { Server } from 'socket.io';
 import { authRouter } from './modules/auth/controller';
