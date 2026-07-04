@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pit_db
+    environment:
+      POSTGRES_USER: pit_user
+      POSTGRES_PASSWORD: pit_pass
+      POSTGRES_DB: pit_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pit_data:/var/lib/postgresql/data
+    networks:
+      - pit_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: pit_cache
+    ports:
+      - "6379:6379"
+    networks:
+      - pit_network
+
+  backend:
+    build: ./backend
+    container_name: pit_backend
+    environment:
+      DATABASE_URL: postgresql://pit_user:pit_pass@postgres:5432/pit_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: super_secret_jwt_key_change_in_production
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - pit_network
+
+volumes:
+  pit_data:
+
+networks:
+  pit_network:
